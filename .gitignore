@@ -1,0 +1,5 @@
+# Ignore everything
+*
+# whitelist things I want
+!.gitignore
+!.emacs
