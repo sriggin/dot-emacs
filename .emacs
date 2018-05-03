@@ -1,25 +1,21 @@
+;;; .emacs --- Sean's .emacs file
+
+;;; Commentary:
+;;; This file contains a snapshot of my configuration of Emacs
+
+;;; Code:
 (require 'package)
 
 ;;;; Global Things
 
-(setq package-archives '(("gnu" . "http://elpa.gnu.org/packages/")
+(setq package-archives '(("gnu" . "https://elpa.gnu.org/packages/")
                          ("marmalade" . "https://marmalade-repo.org/packages/")
-                         ("melpa" . "http://melpa.org/packages/")
+                         ("melpa" . "https://melpa.org/packages/")
                          ("melpa-stable" . "https://stable.melpa.org/packages/")))
 
-;; Refreshing!
 (package-initialize)
 
-;; Some important packages
-(dolist (pkg '(haskell-mode
-               scala-mode
-               drag-stuff
-               powerline
-               ensime
-               fill-column-indicator))
-  (require pkg))
-
-;; Let's get naked
+;;;; Strip out UI elements
 (show-paren-mode t)
 (scroll-bar-mode 0)
 (blink-cursor-mode 0)
@@ -30,7 +26,7 @@
               initial-scratch-message ""
               indent-tabs-mode nil
               tab-width 4
-              tab-always-indent (quote complete))
+              tab-always-indent 'complete)
 (setq inhibit-startup-message t
       inhibit-startup-screen t
       ring-bell-function 'ignore
@@ -41,27 +37,28 @@
       delete-old-versions t
       kept-new-versions 6
       kept-old-versions 2
-      version-control t)
+      version-control t
+      max-lisp-eval-depth 10000)
 
 (electric-indent-mode t)
 (electric-pair-mode t)
 (electric-layout-mode t)
-(drag-stuff-mode t)
-(powerline-default-theme)
 
-(defalias 'yes-or-no-p 'y-or-n-p) 
+(defalias 'yes-or-no-p 'y-or-n-p)
+
+;;; Package Configuration
 
 (use-package ensime
-  :pin melpa-stable
-  :init
-  (setq ensime-startup-snapshot-notification nil))
-
+  :commands ensime-mode
+  :config
+  (setq ensime-startup-notification nil
+        ensime-log-events t)
+  :bind ("M-." . ensime-edit-definition-with-fallback))
 
 (use-package flycheck
-  :commands global-flycheck-mode
-  :diminish " fc"
-  :init
-  (add-hook 'after-init-hook #'global-flycheck-mode)
+  :ensure t
+  :commands flycheck-mode global-flycheck-mode
+  :diminish "FlyC"
   :config
   (use-package flycheck-pos-tip
     :config
@@ -72,57 +69,55 @@
     [0 0 0 0 0 256 384 448 480 496 480 448 384 256 0 0 0 0 0]
     ))
 
+(use-package ggtags
+  :ensure t)
+
 (use-package projectile
-  :demand
-  :init
-  (setq projectile-use-git-grep t)
+  :ensure t
+  :commands projectile-mode
   :config
-  (projectile-global-mode t)
+  (setq projectile-use-git-grep t
+        projectile-tags-backend 'ggtags)
   :bind
   (("C-c f" . projectile-find-file)
    ("C-c C-f" . projectile-grep)))
 
 (use-package undo-tree
-  :diminish undo-tree-mode
-  :config (global-undo-tree-mode)
-  :bind ("C-?" . undo-tree-visualize))
+  :commands undo-tree-mode
+  :bind
+  ("C-?" . undo-tree-visualize))
 
 (use-package ido
+  :ensure t
+  :commands ido-mode
+  :bind (:map ido-file-dir-completion-map
+              ("C-c C-s" . (lambda()
+                             (interactive)
+                             (ido-initiate-auto-merge (current-buffer)))))
   :init
-  (ido-mode t)
+  (ido-mode)
   :config
-  (setq ido-auto-merge-work-directories-length -1) ;; this keeps ido from searching globally
-  (define-key ido-file-dir-completion-map (kbd "C-c C-s")
-    (lambda()
-      (interactive)
-      (ido-initiate-auto-merge (current-buffer))))
+  (setq ido-auto-merge-work-directories-length -1)
   (use-package flx-ido
+    :ensure t
     :init
-    (flx-ido-mode t))
-  (use-package ido-vertical-mode
-    :init
-    (ido-vertical-mode 1)
+    (flx-ido-mode)
     :config
     (setq ido-enable-flex-matching t
           ido-show-dot-for-dired nil
-          ido-enable-dot-prefix t)))
+          ido-enable-dot-prefix t))
+  (use-package ido-vertical-mode
+    :ensure t
+    :init
+    (ido-vertical-mode))) ;; this keeps ido from searching globally
 
-(use-package nlinum
-  :commands nlinum-mode
-  :init (add-hook 'prog-mode-hook 'nlinum-mode)
-  :config
-  (setq nlinum-format "%4d "))
-
-(use-package hl-line
-  :after nlinum
-  :commands hl-line-mode
-  :init
-  (add-hook 'nlinum-mode-hook #'hl-line-mode))
+(use-package smex
+  :ensure t
+  :bind ("M-x" . smex))
 
 ;; Allows highlighting the current symbol
 (use-package highlight-symbol
-  :diminish highlight-symbol-mode
-  :commands highlight-symbol
+  :diminish highlight
   :bind ("C-c h" . highlight-symbol))
 
 ;; Go to last change after moving around (i.e. while reading bad code)
@@ -135,33 +130,37 @@
          ("C-," . goto-last-change-reverse)))
 
 (use-package magit
-  :commands magit-status magit-blame
-  :init (setq magit-revert-buffers nil
-              magit-auto-revert-mode nil
-              magit-las-seen-setup-instruction "1.4.0")
+  :ensure t
+  :commands (magit-status magit-blame)
+  :config (magit-auto-revert-mode nil)
   :bind (("C-c C-g s" . magit-status)
          ("C-c C-g b" . magit-blame)))
 
 (use-package company
-  :diminish company-mode
+  :ensure t
   :commands company-mode
-  :init (setq company-dabbrev-ignore-case nil
-              company-dabbrev-code-ignore-case nil
-              company-dabbrev-downcase nil
-              company-idle-delay 0
-              company-minimum-prefix-length 4))
+  :config
+  (setq company-idle-delay 0
+        company-minimum-prefix-length 4)
+  (use-package company-dabbrev
+    :config
+    (setq company-dabbrev-ignore-case nil
+          company-dabbrev-downcase nil)))
 
 (use-package yasnippet
-  :diminish yas-minor-mode
+  :ensure t
+  :diminish yas
   :commands yas-minor-mode
-  :config (yas-reload-all))
+  :config
+  (yas-reload-all))
 
 (use-package etags-select
   :commands etags-select-find-tag)
 
 (use-package ace-jump-mode
-  :commands ace-jump-mode
-  :init (define-key global-map (kbd "C-c SPC") 'ace-jump-mode))
+  :ensure t
+  :init
+  (define-key global-map (kbd "C-c SPC") 'ace-jump-mode))
 
 ;; Rust Support
 
@@ -173,36 +172,81 @@
   (use-package flycheck-rust
     :after flycheck
     :commands flycheck-rust-setup
-    :init
-    (add-hook 'flycheck-mode-hook #'flycheck-rust-setup)))
-
-(use-package racer
-  :commands racer-mode
-  :diminish racer-mode
-  :init
-  (add-hook 'rust-mode-hook 'racer-mode)
-  (add-hook 'rust-mode-hook 'eldoc-mode)
-  :bind (:map rust-mode-map
-              ("M-." . racer-find-definition))
-  :config
-  (use-package company-racer
+    :hook flycheck-rust-setup)
+  (use-package cargo
+    :commands cargo-minor-mode
+    :diminish cargo)
+  (use-package racer
+    :commands racer-mode
+    :hook (racer-mode eldoc-mode)
+    :bind (:map rust-mode-map
+                ("M-." . racer-find-definition))
     :config
-    (add-to-list 'company-backends 'company-racer)
-    (setq company-tooltip-align-annotations t)))
-
-(use-package cargo
-  :commands cargo-minor-mode
-  :diminish cargo-minor-mode
-  :init
-  (add-hook 'rust-mode-hook 'cargo-minor-mode))
+    (use-package company-racer
+      :config
+      (add-to-list 'company-backends 'company-racer)
+      (setq company-tooltip-align-annotations t))))
 
 (use-package toml-mode
-  :mode (("\\.toml\\'" . toml-mode)))
+  :mode "\\.toml\\'")
+
+(use-package js2-mode
+  :mode "\\.js\\'"
+  :hook (js2-imenu-extras-mode)
+  :config
+  (add-hook 'js2-mode-hook (lambda () (flycheck-select-checker 'javascript-eslint))))
+
+(use-package tern-mode
+  :commands tern-mode
+  :diminish tern
+  :config
+  (add-hook 'js-mode-hook 'tern-mode)
+  (add-to-list 'company-backends 'company-tern))
+
+;(use-package tide
+;  :hook (tide-setup flycheck-mode eldoc-mode tide-hl-identifier-mode tern-mode company-mode)
+;  :config
+;  (add-hook 'before-save-hook 'tide-format-before-save)
+;  (setq company-tooltip-align-annotations t
+;        flycheck-check-syntax-automatically '(save mode-enabled))
+;  (use-package company-tern
+;    :config
+;    (add-to-list 'company-backends 'company-tern)
+;    :bind (:map tern-mode-keymap
+;                ("M-." . nil)
+;                ("M-," . nill))))
+
+(use-package haskell-mode)
+
+(use-package scala-mode
+  :ensure t
+  :bind ("RET" . scala-mode-newline-comments))
+
+(add-hook 'prog-mode-hook
+          (lambda ()
+            (yas-minor-mode)
+            (hs-minor-mode)
+            (subword-mode)
+            (projectile-mode)
+            (flycheck-mode)))
+
+;(use-package prog-mode
+;  :hook (yas-minor-mode hs-minor-mode subword-mode projectile-mode flycheck-mode))
+
+(use-package drag-stuff
+  :ensure t
+  :init (drag-stuff-global-mode t))
+
+(use-package powerline
+  :ensure t
+  :init (powerline-default-theme))
+
+(use-package cl-lib)
+
+(use-package color)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
-;; This is going to save lives
 (defun contextual-backspace ()
   "Hungry whitespace or delete work depending on context."
   (interactive)
@@ -210,16 +254,13 @@
       (while (looking-back "[[:space:]\n]" (- (point) 1))
         (delete-char -1))
     (cond
-     ((and (boundp 'smart-parens-strict-mode)
-           smartparens-strict-mode)
+     ((boundp 'smart-parens-strict-mode)
       (sp-backward-kill-work 1))
      ((and (boundp 'subword-mode)
            subword-mode)
       (subword-backward-kill 1))
      (t
       (backward-kill-word 1)))))
-
-(global-set-key (kbd "C-<backspace>") 'contextual-backspace)
 
 (defun ensime-edit-definition-with-fallback ()
   "Variant of `ensime-edit-definition' with ctags if ENSIME is not available."
@@ -228,63 +269,20 @@
                (ensime-edit-definition))
     (projectile-find-tag)))
 
-(bind-key "M-." 'ensime-edit-definition-with-fallback ensime-mode-map)
-(global-set-key (kbd "M-.") 'projectile-find-tag)
-(global-set-key (kbd "M-,") 'pop-tag-mark)
-
 (defun scala-mode-newline-comments ()
   "Custom newline appropriate for `scala-mode'."
-  ;; shouldn't this be in a post-insert hook?
   (interactive)
   (newline-and-indent)
   (scala-indent:insert-asterisk-on-multiline-comment))
 
-(bind-key "RET" 'scala-mode-newline-comments scala-mode-map)
-
-(add-hook 'prog-mode-hook
-          (lambda ()
-            (yas-minor-mode)
-            (hs-minor-mode)
-            (subword-mode)))
-
-(require 'cl-lib)
-(require 'color)
-
-(add-hook 'js2-mode-hook (lambda ()
-                           (flymake-jshint-load)
-                           (local-set-key (kbd "C-c f") 'jstidy)))
+(global-set-key (kbd "C-<backspace>") 'contextual-backspace)
+(global-set-key (kbd "M-,") 'pop-tag-mark)
 
 (add-hook 'hs-minor-mode-hook (lambda ()
                                 (local-set-key (kbd "C-c C-h") 'hs-hide-block)
                                 (local-set-key (kbd "C-c C-s") 'hs-show-block)
                                 (local-set-key (kbd "C-c C-S-h") 'hs-hide-all)
                                 (local-set-key (kbd "C-c C-S-s") 'hs-show-all)))
-
-(defun jstidy ()
-  "Run js-beautify on the current region or buffer."
-  (interactive)
-  (save-excursion
-    (unless mark-active (mark-defun))
-    (shell-command-on-region (point) (mark) "js-beautify --good-stuff -f -" nil t)))
-
-(add-to-list 'auto-mode-alist '("\\.js$" . js2-mode))
-
-;; Clojure Config
-;;;; Cider config
-(add-hook 'cider-mode-hook 'cider-turn-on-eldoc-mode)
-(setq nrepl-hide-special-buffers t)
-
-(add-hook 'scala-mode-hook
-          (lambda ()
-            (company-mode)
-            (ensime-mode)))
-
-(setq inferior-js-program-command "node --interactive")
-;; Time for some haskell
-(autoload 'ghc-init "ghc" nil t)
-(add-hook 'haskell-mode-hook (lambda () (ghc-init) (flymake-mode)))
-
-(setq-default fill-column 120)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Customizations.. leave it alone
@@ -299,30 +297,32 @@
  '(custom-enabled-themes (quote (spolsky)))
  '(custom-safe-themes
    (quote
-    ("0c29db826418061b40564e3351194a3d4a125d182c6ee5178c237a7364f0ff12" "e26780280b5248eb9b2d02a237d9941956fc94972443b0f7aeec12b5c15db9f3" default)))
- '(ensime-log-events t t)
+    ("c48551a5fb7b9fc019bf3f61ebf14cf7c9cdca79bcb2a4219195371c02268f11" "0c29db826418061b40564e3351194a3d4a125d182c6ee5178c237a7364f0ff12" "e26780280b5248eb9b2d02a237d9941956fc94972443b0f7aeec12b5c15db9f3" default)))
+ '(ensime-log-events t)
  '(flx-ido-mode t)
  '(haskell-mode-hook
    (quote
     (turn-on-haskell-decl-scan turn-on-haskell-doc turn-on-haskell-indentation)))
+ '(js-indent-level 2)
  '(js2-basic-offset 2)
  '(package-selected-packages
    (quote
-    (flycheck-pos-tip rainbow-delimiters flycheck hl-line+ nlinum highlight-symbol projectile ido-vertical-mode flx-ido toml-mode cargo racer rust-mode darkroom ace-jump-mode markdown-mode sublime-themes ensime use-package drag-stuff fill-column-indicator haskell-mode powerline scala-mode)))
- '(projectile-global-mode t)
- '(projectile-tags-backend (quote ggtags))
- '(projectile-use-git-grep t)
+    (ggtags undo-tree magit js2-refactor js2-mode yaml-mode company-tern tide org-present smex flycheck-pos-tip rainbow-delimiters flycheck highlight-symbol projectile ido-vertical-mode flx-ido toml-mode cargo racer rust-mode darkroom ace-jump-mode markdown-mode sublime-themes ensime use-package drag-stuff haskell-mode powerline scala-mode)))
  '(sbt:ansi-support t))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(default ((t (:inherit nil :stipple nil :background "#161A1F" :foreground "#DEDEDE" :inverse-video nil :box nil :strike-through nil :overline nil :underline nil :slant normal :weight normal :height 140 :width normal :foundry "unknown" :family "Consolas"))))
+ '(default ((t (:inherit nil :stipple nil :background "#161A1F" :foreground "#DEDEDE" :inverse-video nil :box nil :strike-through nil :overline nil :underline nil :slant normal :weight normal :height 140 :width normal :foundry "unknown" :family "Droid Sans Mono"))))
  '(ensime-errline-highlight ((t (:inherit flymake-errline))))
  '(hl-line ((t (:inherit highlight :background "#151515" :underline nil))))
  '(sbt:error ((t (:inherit error)))))
-(put 'downcase-region 'disabled nil)
 
-;; Load Golang Config
-;;(load-file "./.emacs.d/golang.el")
+;;;; Specific to OSX, since Apple make the best laptops, even if I strongly dislike MacOS
+(when (eq system-type 'darwin)
+  (setq mac-option-modifier 'meta
+        mac-command-modifier 'meta)
+  (set-face-attribute 'default nil :family "Droid Sans Mono for Powerline")) ; This font was in the list when I checked.
+
+;;; .emacs ends here
