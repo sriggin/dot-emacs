@@ -15,50 +15,52 @@
 
 (package-initialize)
 
-;;;; Strip out UI elements
-(show-paren-mode t)
-(scroll-bar-mode 0)
-(blink-cursor-mode 0)
-(tool-bar-mode 0)
-(menu-bar-mode 0)
+(use-package emacs
+  :config ; Strip out UI elements
+  (show-paren-mode t)
+  (scroll-bar-mode 0)
+  (blink-cursor-mode 0)
+  (tool-bar-mode 0)
+  (menu-bar-mode 0)
+  (setq-default inhibit-scratch-message nil
+                initial-scratch-message ""
+                indent-tabs-mode nil
+                tab-width 4
+                tab-always-indent 'complete)
+  (setq inhibit-startup-message t
+        inhibit-startup-screen t
+        ring-bell-function 'ignore
+        visible-bell t
+        inhibit-startup-echo-area-message "sriggin"
+        backup-by-copying t
+        backup-directory-alist '(("." . "~/.saves"))
+        delete-old-versions t
+        kept-new-versions 6
+        kept-old-versions 2
+        version-control t
+        max-lisp-eval-depth 10000)
 
-(setq-default inhibit-scratch-message nil
-              initial-scratch-message ""
-              indent-tabs-mode nil
-              tab-width 4
-              tab-always-indent 'complete)
-(setq inhibit-startup-message t
-      inhibit-startup-screen t
-      ring-bell-function 'ignore
-      visible-bell t
-      inhibit-startup-echo-area-message "sriggin"
-      backup-by-copying t
-      backup-directory-alist '(("." . "~/.saves"))
-      delete-old-versions t
-      kept-new-versions 6
-      kept-old-versions 2
-      version-control t
-      max-lisp-eval-depth 10000)
+  (electric-indent-mode t)
+  (electric-pair-mode t)
+  (electric-layout-mode t)
 
-(electric-indent-mode t)
-(electric-pair-mode t)
-(electric-layout-mode t)
+  (defalias 'yes-or-no-p 'y-or-n-p))
 
-(defalias 'yes-or-no-p 'y-or-n-p)
 
 ;;; Package Configuration
 
+; Advanced Scala/Java editing
 (use-package ensime
-  :commands ensime-mode
   :config
   (setq ensime-startup-notification nil
         ensime-log-events t)
   :bind ("M-." . ensime-edit-definition-with-fallback))
 
+; Checks code on the fly
 (use-package flycheck
   :ensure t
-  :commands flycheck-mode global-flycheck-mode
   :diminish "FlyC"
+  :hook (prog-mode . flycheck-mode)
   :config
   (use-package flycheck-pos-tip
     :config
@@ -69,12 +71,14 @@
     [0 0 0 0 0 256 384 448 480 496 480 448 384 256 0 0 0 0 0]
     ))
 
+; Fancy tags support
 (use-package ggtags
   :ensure t)
 
+; Project-level navigation
 (use-package projectile
   :ensure t
-  :commands projectile-mode
+  :hook (prog-mode . projectile-mode)
   :config
   (setq projectile-use-git-grep t
         projectile-tags-backend 'ggtags)
@@ -82,26 +86,26 @@
   (("C-c f" . projectile-find-file)
    ("C-c C-f" . projectile-grep)))
 
+; Provides a visual tree of undos
 (use-package undo-tree
-  :commands undo-tree-mode
   :bind
   ("C-?" . undo-tree-visualize))
 
+; General search/completion that isn't helm
 (use-package ido
   :ensure t
-  :commands ido-mode
   :bind (:map ido-file-dir-completion-map
               ("C-c C-s" . (lambda()
                              (interactive)
                              (ido-initiate-auto-merge (current-buffer)))))
   :init
-  (ido-mode)
+  (ido-mode 1)
   :config
   (setq ido-auto-merge-work-directories-length -1)
   (use-package flx-ido
     :ensure t
     :init
-    (flx-ido-mode)
+    (flx-ido-mode 1)
     :config
     (setq ido-enable-flex-matching t
           ido-show-dot-for-dired nil
@@ -109,36 +113,37 @@
   (use-package ido-vertical-mode
     :ensure t
     :init
-    (ido-vertical-mode))) ;; this keeps ido from searching globally
+    (ido-vertical-mode 1))) ;; this keeps ido from searching globally
 
+; Advanced M-x
 (use-package smex
   :ensure t
   :bind ("M-x" . smex))
 
-;; Allows highlighting the current symbol
+; Allows highlighting the current symbol
 (use-package highlight-symbol
-  :diminish highlight
+  :diminish hl
   :bind ("C-c h" . highlight-symbol))
 
-;; Go to last change after moving around (i.e. while reading bad code)
+; Go to last change after moving around (i.e. while reading bad code)
 (use-package goto-chg
-  :commands goto-last-change
   ;; complementary to
   ;; C-x r m / C-x r l
   ;; and C-<space> C-<space> / C-u C-<space>
   :bind (("C-." . goto-last-change)
          ("C-," . goto-last-change-reverse)))
 
+; Git support
 (use-package magit
   :ensure t
-  :commands (magit-status magit-blame)
   :config (magit-auto-revert-mode nil)
   :bind (("C-c C-g s" . magit-status)
          ("C-c C-g b" . magit-blame)))
 
+; Completion for anything*
 (use-package company
   :ensure t
-  :commands company-mode
+  :hook (prog-mode . company-mode)
   :config
   (setq company-idle-delay 0
         company-minimum-prefix-length 4)
@@ -147,61 +152,65 @@
     (setq company-dabbrev-ignore-case nil
           company-dabbrev-downcase nil)))
 
+; Provides many different kinds of snippets
 (use-package yasnippet
   :ensure t
   :diminish yas
-  :commands yas-minor-mode
+  :hook (prog-mode . yas-minor-mode)
   :config
   (yas-reload-all))
 
-(use-package etags-select
-  :commands etags-select-find-tag)
-
+; Quickly jump to a specific charater with 1 key
 (use-package ace-jump-mode
   :ensure t
-  :init
-  (define-key global-map (kbd "C-c SPC") 'ace-jump-mode))
+  :bind ("C-c SPC" . ace-jump-mode))
 
 ;; Rust Support
 
-(use-package rust-mode
-  :mode "\\.rs\\'"
-  :commands rust-mode
+(use-package cargo
+  :ensure t
+  :hook (rust-mode . cargo-minor-mode))
+
+(use-package flycheck-rust
+  :ensure t
+  :after flycheck
+  :hook (rust-mode . flycheck-rust-setup)
   :config
-  (setq rust-format-on-save t)
-  (use-package flycheck-rust
-    :after flycheck
-    :commands flycheck-rust-setup
-    :hook flycheck-rust-setup)
-  (use-package cargo
-    :commands cargo-minor-mode
-    :diminish cargo)
-  (use-package racer
-    :commands racer-mode
-    :hook (racer-mode eldoc-mode)
-    :bind (:map rust-mode-map
-                ("M-." . racer-find-definition))
-    :config
-    (use-package company-racer
-      :config
-      (add-to-list 'company-backends 'company-racer)
-      (setq company-tooltip-align-annotations t))))
+  (add-to-list 'exec-path "~/.cargo/"))
+
+(use-package racer
+  :ensure t
+  :hook (rust-mode . racer-mode)
+  :bind (:map rust-mode-map
+              ("M-." . racer-find-definition)))
+
+(use-package company-racer
+  :bind (:map rust-mode-map
+              ("TAB" . company-indent-or-complete-common))
+  :config
+  (add-to-list 'company-backends 'company-racer)
+  (setq company-tooltip-align-annotations t))
+
+(use-package rust-mode
+  :ensure t
+  :mode "\\.rs\\'"
+  :config
+  (setq rust-format-on-save t))
+
 
 (use-package toml-mode
   :mode "\\.toml\\'")
 
 (use-package js2-mode
   :mode "\\.js\\'"
-  :hook (js2-imenu-extras-mode)
   :config
   (add-hook 'js2-mode-hook (lambda () (flycheck-select-checker 'javascript-eslint))))
 
-(use-package tern-mode
-  :commands tern-mode
-  :diminish tern
-  :config
-  (add-hook 'js-mode-hook 'tern-mode)
-  (add-to-list 'company-backends 'company-tern))
+;(use-package tern-mode
+;  :diminish tern
+;  :config
+;  (add-hook 'js-mode-hook 'tern-mode)
+;  (add-to-list 'company-backends 'company-tern))
 
 ;(use-package tide
 ;  :hook (tide-setup flycheck-mode eldoc-mode tide-hl-identifier-mode tern-mode company-mode)
@@ -220,18 +229,8 @@
 
 (use-package scala-mode
   :ensure t
-  :bind ("RET" . scala-mode-newline-comments))
-
-(add-hook 'prog-mode-hook
-          (lambda ()
-            (yas-minor-mode)
-            (hs-minor-mode)
-            (subword-mode)
-            (projectile-mode)
-            (flycheck-mode)))
-
-;(use-package prog-mode
-;  :hook (yas-minor-mode hs-minor-mode subword-mode projectile-mode flycheck-mode))
+  :bind (:map scala-mode-map
+         ("RET" . scala-mode-newline-comments)))
 
 (use-package drag-stuff
   :ensure t
@@ -244,6 +243,23 @@
 (use-package cl-lib)
 
 (use-package color)
+
+(use-package subword-mode
+  :hook prog-mode)
+
+(use-package hs-minor-mode
+  :hook prog-mode
+  :bind (("C-c C-h" . hs-hide-block)
+         ("C-c C-s" . hs-show-block)
+         ("C-c C-S-h" . hs-hide-all)
+         ("C-c C-S-s" . hs-show-all)))
+
+;(add-hook 'hs-minor-mode-hook (lambda ()
+;                                (local-set-key (kbd "C-c C-h") 'hs-hide-block)
+;                                (local-set-key (kbd "C-c C-s") 'hs-show-block)
+;                                (local-set-key (kbd "C-c C-S-h") 'hs-hide-all)
+;                                (local-set-key (kbd "C-c C-S-s") 'hs-show-all)))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -278,12 +294,6 @@
 (global-set-key (kbd "C-<backspace>") 'contextual-backspace)
 (global-set-key (kbd "M-,") 'pop-tag-mark)
 
-(add-hook 'hs-minor-mode-hook (lambda ()
-                                (local-set-key (kbd "C-c C-h") 'hs-hide-block)
-                                (local-set-key (kbd "C-c C-s") 'hs-show-block)
-                                (local-set-key (kbd "C-c C-S-h") 'hs-hide-all)
-                                (local-set-key (kbd "C-c C-S-s") 'hs-show-all)))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Customizations.. leave it alone
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -307,7 +317,7 @@
  '(js2-basic-offset 2)
  '(package-selected-packages
    (quote
-    (ggtags undo-tree magit js2-refactor js2-mode yaml-mode company-tern tide org-present smex flycheck-pos-tip rainbow-delimiters flycheck highlight-symbol projectile ido-vertical-mode flx-ido toml-mode cargo racer rust-mode darkroom ace-jump-mode markdown-mode sublime-themes ensime use-package drag-stuff haskell-mode powerline scala-mode)))
+    (yasnippet-snippets company-racer ggtags undo-tree magit js2-refactor js2-mode yaml-mode company-tern tide org-present smex flycheck-pos-tip rainbow-delimiters flycheck highlight-symbol projectile ido-vertical-mode flx-ido toml-mode cargo racer rust-mode darkroom ace-jump-mode markdown-mode sublime-themes ensime use-package drag-stuff haskell-mode powerline scala-mode)))
  '(sbt:ansi-support t))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
