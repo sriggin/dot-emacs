@@ -254,6 +254,22 @@
          ("C-c C-S-h" . hs-hide-all)
          ("C-c C-S-s" . hs-show-all)))
 
+(use-package org-present
+  :ensure t
+  :config
+  (add-hook 'org-present-mode-hook
+            (lambda ()
+              (org-present-big)
+              (org-display-inline-images)
+              (org-present-hide-cursor)
+              (org-present-read-only)))
+  (add-hook 'org-present-mode-quit-hook
+            (lambda ()
+              (org-present-small)
+              (org-remove-inline-images)
+              (org-present-show-cursor)
+              (org-present-read-write))))
+
 ;(add-hook 'hs-minor-mode-hook (lambda ()
 ;                                (local-set-key (kbd "C-c C-h") 'hs-hide-block)
 ;                                (local-set-key (kbd "C-c C-s") 'hs-show-block)
@@ -294,6 +310,7 @@
 (global-set-key (kbd "C-<backspace>") 'contextual-backspace)
 (global-set-key (kbd "M-,") 'pop-tag-mark)
 
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Customizations.. leave it alone
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -317,7 +334,7 @@
  '(js2-basic-offset 2)
  '(package-selected-packages
    (quote
-    (yasnippet-snippets company-racer ggtags undo-tree magit js2-refactor js2-mode yaml-mode company-tern tide org-present smex flycheck-pos-tip rainbow-delimiters flycheck highlight-symbol projectile ido-vertical-mode flx-ido toml-mode cargo racer rust-mode darkroom ace-jump-mode markdown-mode sublime-themes ensime use-package drag-stuff haskell-mode powerline scala-mode)))
+    (graphviz-dot-mode flycheck-rust ggtags undo-tree magit js2-refactor js2-mode yaml-mode company-tern tide org-present smex flycheck-pos-tip rainbow-delimiters flycheck highlight-symbol projectile ido-vertical-mode flx-ido toml-mode cargo racer rust-mode darkroom ace-jump-mode markdown-mode sublime-themes ensime use-package drag-stuff haskell-mode powerline scala-mode)))
  '(sbt:ansi-support t))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
